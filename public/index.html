@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>.io 풍선 게임</title>
+  <style>
+    html, body {
+      margin: 0; padding: 0;
+      overflow: hidden;
+      background: black;
+    }
+    #lobby, #game {
+      position: absolute; 
+      top: 0; left: 0; right: 0; bottom: 0;
+    }
+    #game { display: none; }
+    #lobby {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: black;
+      color: white;
+    }
+    #playerList {
+      list-style: none;
+      padding: 0;
+    }
+    canvas {
+      display: block;
+      background: black;
+    }
+  </style>
+</head>
+<body>
+  <div id="lobby">
+    <h1>대기방</h1>
+    <label>닉네임: <input type="text" id="nickname" value="Guest"></label><br><br>
+    <label>색상: <input type="color" id="color" value="#00aaff"></label><br><br>
+    <label>승자의 수: <input type="number" id="winnerCountInput" value="1" min="1"></label><br><br>
+    <button id="winnerCountBtn">Set WinnerCount</button><br><br>
+    <button id="readyBtn">Ready</button>
+    <hr>
+    <h2>참가자 목록</h2>
+    <ul id="playerList"></ul>
+  </div>
+
+  <div id="game">
+    <canvas id="gameCanvas"></canvas>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>
