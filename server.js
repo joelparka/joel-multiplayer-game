@@ -6,7 +6,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
 
-app.use(express.static("public")); // public 폴더 내 index.html, client.js, sounds 폴더 등
+app.use(express.static("public")); // public 폴더 내 index.html, client.js, sounds 등
 
 // ----------------------
 // Global Variables
@@ -18,7 +18,7 @@ var MAP_HEIGHT = 16000;
 var SERVER_FPS = 30;
 var winnerCount = 1;
 
-// 플레이어 관련 상수
+// 플레이어 상수
 var PLAYER_MAX_SPEED = 30;
 var PLAYER_ACCEL_TIME = 2;
 var PLAYER_ACCEL = PLAYER_MAX_SPEED / (PLAYER_ACCEL_TIME * SERVER_FPS);
@@ -29,7 +29,7 @@ var NEEDLE_LENGTH = 40;
 var BALLOON_OFFSET = PLAYER_RADIUS + 10;
 var BALLOON_RADIUS = 20;
 
-// NPC 관련 상수
+// NPC 상수
 var NPC_MAX_SPEED = PLAYER_MAX_SPEED * 2;
 var NPC_ACCEL_TIME = 8;
 var NPC_ACCEL = NPC_MAX_SPEED / (NPC_ACCEL_TIME * SERVER_FPS);
@@ -50,7 +50,7 @@ var spawnedGoryeosam = false; // 한국고려삼
 // Helper Functions
 // ----------------------
 
-// NPC 클래스 (type 없으면 "normal")
+// NPC 클래스 (type 미지정 시 "normal")
 function NPC(x, y) {
   this.x = x;
   this.y = y;
@@ -107,8 +107,7 @@ function pointLineDist(px, py, x1, y1, x2, y2) {
   let dot = A * C + B * D;
   let len2 = C * C + D * D;
   let param = dot / len2;
-  if(param < 0) param = 0;
-  else if(param > 1) param = 1;
+  if(param < 0) param = 0; else if(param > 1) param = 1;
   let xx = x1 + param * C, yy = y1 + param * D;
   return Math.hypot(px - xx, py - yy);
 }
@@ -173,7 +172,6 @@ function npcCollision() {
   for(let i = 0; i < npcs.length; i++) {
     let npc = npcs[i];
     if(!npc.alive) continue;
-    // 중요! 나랑드의 현신(Narang)은 일반 충돌 검사에서 제외
     if(npc.type === "narang") continue;
     for(let pid in players) {
       let p = players[pid];
@@ -336,7 +334,7 @@ io.on("connection", function(socket) {
         npc.type = "normal";
         npcs.push(npc);
       }
-      // 플레이어 리스폰 (닉네임, 색상 유지)
+      // 플레이어 리스폰 (닉네임/색상 유지)
       for(let pid in players) {
         let pl = players[pid];
         pl.alive = true;
@@ -376,6 +374,7 @@ io.on("connection", function(socket) {
       
       // [2] 얼김치 NPC: 게임 시작 후 120초에 메시지, 그 후 30초 후 (총 150초, 2분 30초 후) 등장
       setTimeout(() => {
+        io.emit("gameMessage", { text: "", duration: 0 }); // 이전 메시지 지우기
         io.emit("gameMessage", { text: "30초 후에 얼김치의 얼이 울부짖습니다...", countdown: 30, color: "red", position: "top" });
         setTimeout(() => {
           if(!spawnedEolkimchi) {
@@ -401,7 +400,7 @@ io.on("connection", function(socket) {
               y: MAP_HEIGHT/2,
               alive: true,
               type: "goryeosam",
-              size: 200, // 초기 크기: 200 (플레이어의 10배, 기존 20*10)
+              size: 200, // 플레이어 캐릭터의 10배 크기
               growthCountdown: 10 * SERVER_FPS
             };
             npcs.push(goryeosam);
