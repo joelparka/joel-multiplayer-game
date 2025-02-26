@@ -30,6 +30,16 @@
       display: block;
       background: black;
     }
+    /* 메시지 오버레이 (상단 중앙) */
+    #messageOverlay {
+      position: absolute;
+      top: 20px;
+      width: 100%;
+      text-align: center;
+      font-size: 48px;
+      color: red;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
@@ -48,6 +58,13 @@
   <div id="game">
     <canvas id="gameCanvas"></canvas>
   </div>
+
+  <!-- 메시지 오버레이 -->
+  <div id="messageOverlay"></div>
+
+  <!-- 오디오 파일: 배경음악 및 죽음 효과 -->
+  <audio id="bgm" src="bgm.mp3" loop></audio>
+  <audio id="deadSound" src="dead.mp3"></audio>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="client.js"></script>
