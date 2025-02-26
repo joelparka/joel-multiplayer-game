@@ -35,7 +35,7 @@ socket.on("connect", function() {
   console.log("내 소켓 ID:" + myId);
 });
 
-// Ready 버튼 토글 (대기방)
+// 대기실에서는 무적 스킬 UI 숨김 및 Ready 버튼 이벤트
 readyBtn.addEventListener("click", function() {
   isReady = !isReady;
   socket.emit("setPlayerInfo", { nickname: nicknameInput.value, color: colorInput.value });
@@ -48,7 +48,11 @@ startBtn.addEventListener("click", function() {
   socket.emit("startGame");
 });
 
-// 대기방 업데이트
+// 초기화 버튼 이벤트 (대기실 우측 상단)
+document.getElementById("resetBtn").addEventListener("click", function() {
+  socket.emit("resetGame");
+});
+
 socket.on("lobbyUpdate", function(playersData) {
   playerList.innerHTML = "";
   var allReady = true;
@@ -62,7 +66,6 @@ socket.on("lobbyUpdate", function(playersData) {
   startBtn.style.display = allReady ? "block" : "none";
 });
 
-// 게임 시작
 socket.on("gameStart", function() {
   lobbyDiv.style.display = "none";
   gameDiv.style.display = "block";
@@ -75,7 +78,6 @@ socket.on("gameStart", function() {
   startGameLoop();
 });
 
-// 게임 메시지 수신
 socket.on("gameMessage", function(data) {
   if(data.countdown) {
     displayCountdown(data.text, data.countdown, data.color, data.position);
@@ -114,15 +116,15 @@ function displayCountdown(prefix, count, color, position) {
   }, 1000);
 }
 
-// 무적 스킬: 대기방에서는 무시, 게임 중에만 활성화
+// 무적 스킬: 대기실에서는 무시, 게임 중에만
 document.addEventListener("keydown", function(e) {
   if(e.key === "1") {
     if(lobbyDiv.style.display !== "none") return;
     if(!invincibilityActivated) {
       invincibilityActivated = true;
       socket.emit("activateInvincibility");
-      // 전체 무적 UI (skillDisplay) 회색으로 변경
       var skillDisplay = document.getElementById("skillDisplay");
+      // 스킬 UI 전체를 회색으로 변경
       skillDisplay.style.color = "gray";
       skillDisplay.style.borderColor = "gray";
       skillDisplay.style.backgroundColor = "gray";
@@ -130,7 +132,6 @@ document.addEventListener("keydown", function(e) {
   }
 });
 
-// zoneSound 재생
 socket.on("zoneSound", function() {
   var zone = document.getElementById("zoneSound");
   if(zone) {
@@ -139,7 +140,6 @@ socket.on("zoneSound", function() {
   }
 });
 
-// gameState 업데이트
 socket.on("gameState", function(data) {
   var playersData = data.players;
   var npcs = data.npcs;
@@ -166,6 +166,16 @@ socket.on("gameOver", function(info) {
   lobbyDiv.style.display = "flex";
   gameDiv.style.display = "none";
   explosions = [];
+  invincibilityActivated = false;
+});
+
+socket.on("gameReset", function() {
+  // 서버 초기화 후 모든 클라이언트에서 리셋 처리
+  lobbyDiv.style.display = "flex";
+  gameDiv.style.display = "none";
+  var bgm = document.getElementById("bgm");
+  bgm.pause();
+  bgm.currentTime = 0;
   invincibilityActivated = false;
 });
 
@@ -204,7 +214,6 @@ function updateExplosions() {
   explosions = explosions.filter(function(ex) { return ex.frame <= 30; });
 }
 
-// 별 그리기 함수 (5각별)
 function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius) {
   var rot = Math.PI / 2 * 3;
   var x = cx, y = cy;
@@ -254,7 +263,7 @@ function drawGame(playersData, npcs) {
   ctx.closePath();
   ctx.stroke();
 
-  // 플레이어 그리기 – 무적 상태이면 노랑/오렌지로 번갈아 깜빡임 및 "존야!!!!!" 텍스트 표시
+  // 플레이어 그리기 – 무적 시 깜빡임 및 "존야!!!!!" 텍스트 표시
   for(var pid in playersData) {
     var pl = playersData[pid];
     if(!pl.alive) continue;
@@ -262,7 +271,6 @@ function drawGame(playersData, npcs) {
     var py = pl.y - localPlayer.y + gameCanvas.height / 2;
     if(pl.invincible) {
       var flash = Math.floor(Date.now()/100) % 2 === 0;
-      // 본체: 노랑과 오렌지 번갈아
       ctx.fillStyle = flash ? "yellow" : "orange";
     } else {
       ctx.fillStyle = pl.color;
@@ -275,8 +283,7 @@ function drawGame(playersData, npcs) {
     ctx.strokeStyle = "red";
     ctx.lineWidth = pl.needleBonus ? 20 : 2;
     if(pl.invincible) {
-      // 무적이면 needle도 노랑/오렌지 번갈아
-      ctx.strokeStyle = Math.floor(Date.now()/100) % 2 === 0 ? "yellow" : "orange";
+      ctx.strokeStyle = (Math.floor(Date.now()/100) % 2 === 0) ? "yellow" : "orange";
     }
     var startX = px + 20 * Math.cos(pl.angle);
     var startY = py + 20 * Math.sin(pl.angle);
@@ -288,7 +295,7 @@ function drawGame(playersData, npcs) {
     ctx.stroke();
     ctx.lineWidth = 2;
 
-    ctx.fillStyle = pl.invincible ? (Math.floor(Date.now()/100) % 2 === 0 ? "yellow" : "orange") : "orange";
+    ctx.fillStyle = pl.invincible ? ((Math.floor(Date.now()/100) % 2 === 0) ? "yellow" : "orange") : "orange";
     var balloonX = px - 30 * Math.cos(pl.angle);
     var balloonY = py - 30 * Math.sin(pl.angle);
     ctx.beginPath();
@@ -306,7 +313,7 @@ function drawGame(playersData, npcs) {
     }
   }
 
-  // NPC 그리기 – 특수 NPC는 빠른 무지개색과 이름 표시
+  // NPC 그리기 – 특수 NPC는 무지개색 및 이름 표시
   for(var i = 0; i < npcs.length; i++) {
     var nn = npcs[i];
     if(!nn.alive) continue;
@@ -359,6 +366,7 @@ function drawGame(playersData, npcs) {
     }
   }
 
+  // 미니맵 그리기
   var miniSize = 200;
   var miniX = gameCanvas.width - miniSize - 20;
   var miniY = gameCanvas.height - miniSize - 20;
@@ -366,9 +374,8 @@ function drawGame(playersData, npcs) {
   ctx.fillRect(miniX, miniY, miniSize, miniSize);
   ctx.strokeStyle = "white";
   ctx.strokeRect(miniX, miniY, miniSize, miniSize);
-
-  var scaleX = miniSize / mapWidth;
-  var scaleY = miniSize / mapHeight;
+  var scaleX = miniSize / MAP_WIDTH;
+  var scaleY = miniSize / MAP_HEIGHT;
   for(var pid2 in playersData) {
     var p2 = playersData[pid2];
     if(!p2.alive) continue;
@@ -384,12 +391,19 @@ function drawGame(playersData, npcs) {
     if(!npc2.alive) continue;
     var mmx2 = miniX + (npc2.x * scaleX);
     var mmy2 = miniY + (npc2.y * scaleY);
-    if(npc2.type === "narang") ctx.fillStyle = "magenta";
-    else if(npc2.type === "eolkimchi") ctx.fillStyle = "yellow";
-    else if(npc2.type === "goryeosam") ctx.fillStyle = "hsl(" + ((Date.now()/2)%360) + ",100%,50%)";
-    else ctx.fillStyle = "white";
-    ctx.beginPath();
-    ctx.arc(mmx2, mmy2, 4, 0, Math.PI * 2);
-    ctx.fill();
+    if(npc2.type === "goryeosam") {
+      let miniRadius = npc2.size / 5;
+      ctx.fillStyle = "hsl(" + ((Date.now()/2)%360) + ",100%,50%)";
+      ctx.beginPath();
+      ctx.arc(mmx2, mmy2, miniRadius, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      if(npc2.type === "narang") ctx.fillStyle = "magenta";
+      else if(npc2.type === "eolkimchi") ctx.fillStyle = "yellow";
+      else ctx.fillStyle = "white";
+      ctx.beginPath();
+      ctx.arc(mmx2, mmy2, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 }

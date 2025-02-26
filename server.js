@@ -173,7 +173,7 @@ function npcCollision() {
   for(let i = 0; i < npcs.length; i++) {
     let npc = npcs[i];
     if(!npc.alive) continue;
-    // 중요! 나랑드의 현신(Narang)은 일반 충돌 검사에서 제외
+    // 나랑드의 현신(Narang)은 일반 충돌 검사에서 제외!
     if(npc.type === "narang") continue;
     for(let pid in players) {
       let p = players[pid];
@@ -203,6 +203,7 @@ function specialNPCCollision() {
         npc.alive = false;
         p.needleLength = curNeedle * 4;
         p.needleBonus = true;
+        // 메시지는 NPC 등장 시 바로 송출됨 (모든 플레이어에게)
         io.emit("gameMessage", { text: "나랑드의 현신이 등장했습니다. 처치하면 캐릭터가 강화됩니다.", duration: 0 });
         break;
       }
@@ -293,7 +294,7 @@ io.on("connection", function(socket) {
     io.emit("lobbyUpdate", players);
   });
 
-  // 무적 스킬 (키보드 1) – 게임 중에만 작동
+  // 무적 스킬 (키보드 1) – 게임 중에만
   socket.on("activateInvincibility", function() {
     let p = players[socket.id];
     if(p && !p.invincibilityUsed && gameRunning) {
@@ -328,7 +329,7 @@ io.on("connection", function(socket) {
       spawnedNarang = false;
       spawnedEolkimchi = false;
       spawnedGoryeosam = false;
-      // 일반 NPC 2마리 생성 (normal 타입)
+      // 일반 NPC 2마리 생성 (normal 타입; 충돌 대상으로)
       for(let i = 0; i < 2; i++) {
         let spn = getSafeSpawn(npcs, players);
         let npc = new NPC(spn.x, spn.y);
@@ -336,7 +337,7 @@ io.on("connection", function(socket) {
         npc.type = "normal";
         npcs.push(npc);
       }
-      // 플레이어 리스폰 (닉네임, 색상 유지)
+      // 플레이어 리스폰 (닉네임/색상 그대로 유지)
       for(let pid in players) {
         let pl = players[pid];
         pl.alive = true;
@@ -401,7 +402,7 @@ io.on("connection", function(socket) {
               y: MAP_HEIGHT/2,
               alive: true,
               type: "goryeosam",
-              size: 200, // 초기 크기: 200 (플레이어의 10배, 기존 20*10)
+              size: 200, // 초기 크기: 200 (플레이어의 10배)
               growthCountdown: 10 * SERVER_FPS
             };
             npcs.push(goryeosam);
@@ -434,6 +435,22 @@ io.on("connection", function(socket) {
     console.log("플레이어 나감:" + socket.id);
     delete players[socket.id];
     io.emit("lobbyUpdate", players);
+  });
+
+  // ----------------------
+  // 초기화(reset) 이벤트: 대기실의 "초기화" 버튼을 누르면 전체 게임 상태를 초기화
+  socket.on("resetGame", function() {
+    gameRunning = false;
+    npcs = [];
+    spawnedNarang = false;
+    spawnedEolkimchi = false;
+    spawnedGoryeosam = false;
+    for(let pid in players) {
+      players[pid].ready = false;
+      players[pid].invincibilityUsed = false;
+      // 필요시 추가 초기화
+    }
+    io.emit("gameReset");
   });
 });
 
@@ -633,6 +650,24 @@ function checkGameOver() {
     }
   }
 }
+
+// ----------------------
+// Reset 기능: 대기실 우측 상단의 "초기화" 버튼을 누르면 전체 상태 초기화
+// ----------------------
+io.on("connection", function(socket) {
+  socket.on("resetGame", function() {
+    gameRunning = false;
+    npcs = [];
+    spawnedNarang = false;
+    spawnedEolkimchi = false;
+    spawnedGoryeosam = false;
+    for(let pid in players) {
+      players[pid].ready = false;
+      players[pid].invincibilityUsed = false;
+    }
+    io.emit("gameReset");
+  });
+});
 
 var PORT = 3000;
 server.listen(PORT, function() {
