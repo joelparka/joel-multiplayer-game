@@ -40,31 +40,20 @@
       color: red;
       pointer-events: none;
     }
-    /* 무적 스킬 디스플레이: 좌측 하단, 직사각형 프레임, 황금빛 빠른 무지개 애니메이션 */
+    /* 무적 스킬 디스플레이: 화면 좌측 하단 (미니맵 왼쪽) */
     #skillDisplay {
       position: absolute;
       bottom: 20px;
       left: 20px;
-      width: 150px;
-      padding: 10px;
-      border: 3px solid;
-      border-color: gold;
-      text-align: center;
+      color: yellow;
       font-weight: bold;
       font-size: 32px;
-      color: yellow;
-      animation: flash 0.5s infinite;
-      background-color: rgba(0,0,0,0.5);
+      text-align: center;
     }
     #skillDisplay span {
       display: block;
       font-size: 16px;
       font-weight: normal;
-    }
-    @keyframes flash {
-      0% { color: yellow; }
-      50% { color: gold; }
-      100% { color: yellow; }
     }
   </style>
 </head>
@@ -87,7 +76,7 @@
 
   <!-- 메시지 오버레이 -->
   <div id="messageOverlay"></div>
-  <!-- 무적 스킬 디스플레이 -->
+  <!-- 무적 스킬 디스플레이 (좌측 하단) -->
   <div id="skillDisplay">
     PRESS 1<br>
     존야
