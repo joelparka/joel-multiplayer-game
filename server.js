@@ -401,7 +401,7 @@ io.on("connection", function(socket) {
               y: MAP_HEIGHT/2,
               alive: true,
               type: "goryeosam",
-              size: 20,
+              size: 200,
               growthCountdown: 10 * SERVER_FPS
             };
             npcs.push(goryeosam);
