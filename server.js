@@ -166,26 +166,81 @@ function startKoreanGoryeoSamGrowth() {
 
 // 소켓 이벤트 처리
 io.on("connection", function(socket) {
-  // 기존 소켓 연결 코드...
+  console.log("플레이어 접속:" + socket.id);
 
-  // 게임 시작 후 타이머 및 NPC 관련 기능 업데이트
+  players[socket.id] = {
+    nickname: "Guest",
+    color: "#00AAFF",
+    ready: false,
+    x: 999999, y: 999999,
+    vx: 0, vy: 0,
+    angle: 0,
+    alive: true,
+    explosion: false
+  };
+
+  socket.on("setPlayerInfo", function(data) {
+    var p = players[socket.id];
+    if (p) {
+      p.nickname = data.nickname;
+      p.color = data.color;
+    }
+    io.emit("lobbyUpdate", players);
+  });
+
   socket.on("setReady", function(rdy) {
-    // 게임 준비가 완료되면 NPC 및 타이머 시작
-    if (rdy) {
+    var p = players[socket.id];
+    if (p) p.ready = rdy;
+
+    var allReady = true;
+    for (var pid in players) {
+      if (!players[pid].ready) {
+        allReady = false;
+        break;
+      }
+    }
+    if (allReady && !gameRunning) {
       gameRunning = true;
+      npcs = [];
+      for (var i = 0; i < 2; i++) {
+        var spn = getSafeSpawn(npcs, players);
+        var npc = new NPC(spn.x, spn.y);
+        npcs.push(npc);
+      }
+      // respawn players
+      for (var pid2 in players) {
+        var pl = players[pid2];
+        pl.alive = true;
+        pl.explosion = false;
+        pl.vx = 0; pl.vy = 0;
+        var s = getSafeSpawn(npcs, players);
+        pl.x = s.x; pl.y = s.y;
+      }
       io.emit("gameStart");
-      console.log("게임 시작!");
+      console.log("모든 플레이어가 준비 완료. 게임 시작! (승자수:" + winnerCount + ")");
+    } else {
+      io.emit("lobbyUpdate", players);
     }
   });
 
-  // 게임 상태 업데이트
-  socket.on("gameState", function(data) {
-    io.emit("gameState", {
-      players: players,
-      npcs: npcs,
-      mapWidth: MAP_WIDTH,
-      mapHeight: MAP_HEIGHT
-    });
+  socket.on("playerMove", function(data) {
+    var p = players[socket.id];
+    if (!p || !p.alive || !gameRunning) return;
+    var curSpeed = Math.hypot(p.vx, p.vy);
+    var speedFactor = 1.0 - (curSpeed / PLAYER_MAX_SPEED) * TURN_DIFFICULTY;
+    if (speedFactor < 0) speedFactor = 0;
+
+    if (data.mouseDown) {
+      p.vx += PLAYER_ACCEL * Math.cos(data.angle) * speedFactor;
+      p.vy += PLAYER_ACCEL * Math.sin(data.angle) * speedFactor;
+    }
+    p.angle = data.angle;
+  });
+
+  socket.on("disconnect", function() {
+    console.log("플레이어 나감:" + socket.id);
+    delete players[socket.id];
+    io.emit("lobbyUpdate", players);
   });
 });
 
