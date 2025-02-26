@@ -10,7 +10,7 @@
       background: black;
     }
     #lobby, #game {
-      position: absolute; 
+      position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
     }
     #game { display: none; }
@@ -40,6 +40,33 @@
       color: red;
       pointer-events: none;
     }
+    /* 무적 스킬 디스플레이 (좌측 하단) – 게임 시작 후에만 보임 */
+    #skillDisplay {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      width: 150px;
+      padding: 10px;
+      border: 3px solid;
+      border-color: gold;
+      text-align: center;
+      font-weight: bold;
+      font-size: 32px;
+      color: yellow;
+      animation: flash 0.5s infinite;
+      background-color: rgba(0,0,0,0.5);
+      display: none;
+    }
+    #skillDisplay span {
+      display: block;
+      font-size: 16px;
+      font-weight: normal;
+    }
+    @keyframes flash {
+      0% { color: yellow; }
+      50% { color: orange; }
+      100% { color: yellow; }
+    }
   </style>
 </head>
 <body>
@@ -48,8 +75,8 @@
     <label>닉네임: <input type="text" id="nickname" value="Guest"></label><br><br>
     <label>색상: <input type="color" id="color" value="#00aaff"></label><br><br>
     <label>승자의 수: <input type="number" id="winnerCountInput" value="1" min="1"></label><br><br>
-    <button id="winnerCountBtn">Set WinnerCount</button><br><br>
     <button id="readyBtn">Ready</button>
+    <button id="startBtn" style="display:none;">START</button>
     <hr>
     <h2>참가자 목록</h2>
     <ul id="playerList"></ul>
@@ -61,10 +88,16 @@
 
   <!-- 메시지 오버레이 -->
   <div id="messageOverlay"></div>
+  <!-- 무적 스킬 디스플레이 -->
+  <div id="skillDisplay">
+    PRESS 1<br>
+    존야
+  </div>
 
-  <!-- 오디오 파일: sounds 폴더 내에 bgm.mp3, dead.mp3 -->
+  <!-- 오디오 파일들 -->
   <audio id="bgm" src="sounds/bgm.mp3" loop></audio>
   <audio id="deadSound" src="sounds/dead.mp3"></audio>
+  <audio id="zoneSound" src="sounds/zone.mp3"></audio>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="client.js"></script>
