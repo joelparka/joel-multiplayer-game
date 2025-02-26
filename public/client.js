@@ -35,7 +35,7 @@ socket.on("connect", function() {
   console.log("내 소켓 ID:" + myId);
 });
 
-// 대기실에서는 무적 스킬 UI 숨김 및 Ready 버튼 이벤트
+// Ready 버튼 토글 (대기방)
 readyBtn.addEventListener("click", function() {
   isReady = !isReady;
   socket.emit("setPlayerInfo", { nickname: nicknameInput.value, color: colorInput.value });
@@ -48,7 +48,7 @@ startBtn.addEventListener("click", function() {
   socket.emit("startGame");
 });
 
-// 초기화 버튼 이벤트 (대기실 우측 상단)
+// 초기화 버튼 클릭 이벤트 (대기실 우측 상단)
 document.getElementById("resetBtn").addEventListener("click", function() {
   socket.emit("resetGame");
 });
@@ -116,7 +116,7 @@ function displayCountdown(prefix, count, color, position) {
   }, 1000);
 }
 
-// 무적 스킬: 대기실에서는 무시, 게임 중에만
+// 무적 스킬: 대기방에서는 무시, 게임 중에만 활성화
 document.addEventListener("keydown", function(e) {
   if(e.key === "1") {
     if(lobbyDiv.style.display !== "none") return;
@@ -170,7 +170,7 @@ socket.on("gameOver", function(info) {
 });
 
 socket.on("gameReset", function() {
-  // 서버 초기화 후 모든 클라이언트에서 리셋 처리
+  // 서버에서 리셋 이벤트가 오면 대기실로 돌아감
   lobbyDiv.style.display = "flex";
   gameDiv.style.display = "none";
   var bgm = document.getElementById("bgm");
@@ -263,7 +263,7 @@ function drawGame(playersData, npcs) {
   ctx.closePath();
   ctx.stroke();
 
-  // 플레이어 그리기 – 무적 시 깜빡임 및 "존야!!!!!" 텍스트 표시
+  // 플레이어 그리기 – 무적 상태이면 노랑/오렌지 번갈아 깜빡임 및 "존야!!!!!" 텍스트 표시
   for(var pid in playersData) {
     var pl = playersData[pid];
     if(!pl.alive) continue;
@@ -313,7 +313,7 @@ function drawGame(playersData, npcs) {
     }
   }
 
-  // NPC 그리기 – 특수 NPC는 무지개색 및 이름 표시
+  // NPC 그리기 – 특수 NPC는 빠른 무지개색과 이름 표시
   for(var i = 0; i < npcs.length; i++) {
     var nn = npcs[i];
     if(!nn.alive) continue;
@@ -374,8 +374,9 @@ function drawGame(playersData, npcs) {
   ctx.fillRect(miniX, miniY, miniSize, miniSize);
   ctx.strokeStyle = "white";
   ctx.strokeRect(miniX, miniY, miniSize, miniSize);
-  var scaleX = miniSize / MAP_WIDTH;
-  var scaleY = miniSize / MAP_HEIGHT;
+
+  var scaleX = miniSize / mapWidth;
+  var scaleY = miniSize / mapHeight;
   for(var pid2 in playersData) {
     var p2 = playersData[pid2];
     if(!p2.alive) continue;
@@ -391,19 +392,12 @@ function drawGame(playersData, npcs) {
     if(!npc2.alive) continue;
     var mmx2 = miniX + (npc2.x * scaleX);
     var mmy2 = miniY + (npc2.y * scaleY);
-    if(npc2.type === "goryeosam") {
-      let miniRadius = npc2.size / 5;
-      ctx.fillStyle = "hsl(" + ((Date.now()/2)%360) + ",100%,50%)";
-      ctx.beginPath();
-      ctx.arc(mmx2, mmy2, miniRadius, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      if(npc2.type === "narang") ctx.fillStyle = "magenta";
-      else if(npc2.type === "eolkimchi") ctx.fillStyle = "yellow";
-      else ctx.fillStyle = "white";
-      ctx.beginPath();
-      ctx.arc(mmx2, mmy2, 4, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    if(npc2.type === "narang") ctx.fillStyle = "magenta";
+    else if(npc2.type === "eolkimchi") ctx.fillStyle = "yellow";
+    else if(npc2.type === "goryeosam") ctx.fillStyle = "hsl(" + ((Date.now()/2)%360) + ",100%,50%)";
+    else ctx.fillStyle = "white";
+    ctx.beginPath();
+    ctx.arc(mmx2, mmy2, 4, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
