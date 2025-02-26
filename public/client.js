@@ -1,4 +1,5 @@
-var socket = io();
+var socket = io("https://joel-multiplayer-game-production.up.railway.app");
+
 
 var nicknameInput= document.getElementById("nickname");
 var colorInput= document.getElementById("color");

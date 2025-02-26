@@ -1,55 +1,106 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <title>.io 풍선 게임</title>
-  <style>
-    html, body {
-      margin: 0; padding: 0;
-      overflow: hidden;
-      background: black;
-    }
-    #lobby, #game {
-      position: absolute; 
-      top: 0; left: 0; right: 0; bottom: 0;
-    }
-    #game { display: none; }
-    #lobby {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: black;
-      color: white;
-    }
-    #playerList {
-      list-style: none;
-      padding: 0;
-    }
-    canvas {
-      display: block;
-      background: black;
-    }
-  </style>
-</head>
-<body>
-  <div id="lobby">
-    <h1>대기방</h1>
-    <label>닉네임: <input type="text" id="nickname" value="Guest"></label><br><br>
-    <label>색상: <input type="color" id="color" value="#00aaff"></label><br><br>
-    <label>승자의 수: <input type="number" id="winnerCountInput" value="1" min="1"></label><br><br>
-    <button id="winnerCountBtn">Set WinnerCount</button><br><br>
-    <button id="readyBtn">Ready</button>
-    <hr>
-    <h2>참가자 목록</h2>
-    <ul id="playerList"></ul>
-  </div>
+var socket = io("https://joel-multiplayer-game-production.up.railway.app");
 
-  <div id="game">
-    <canvas id="gameCanvas"></canvas>
-  </div>
+var bgm = new Audio('bgm.mp3');
+bgm.loop = true;
+bgm.play();
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="client.js"></script>
-</body>
-</html>
+var deadSound = new Audio('dead.mp3');
+
+var nicknameInput = document.getElementById("nickname");
+var colorInput = document.getElementById("color");
+var readyBtn = document.getElementById("readyBtn");
+var playerList = document.getElementById("playerList");
+var winnerCountInput = document.getElementById("winnerCountInput");
+var winnerCountBtn = document.getElementById("winnerCountBtn");
+
+var lobbyDiv = document.getElementById("lobby");
+var gameDiv = document.getElementById("game");
+var gameCanvas = document.getElementById("gameCanvas");
+var ctx = gameCanvas.getContext("2d");
+
+function resizeCanvas() {
+  gameCanvas.width = window.innerWidth;
+  gameCanvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+var myId = null;
+var localPlayer = {
+  x: 0, y: 0,
+  angle: 0,
+  alive: true
+};
+
+socket.on("connect", function() {
+  myId = socket.id;
+  console.log("내 소켓 ID:" + myId);
+});
+
+winnerCountBtn.addEventListener("click", function() {
+  var val = winnerCountInput.value;
+  socket.emit("setWinnerCount", val);
+});
+
+readyBtn.addEventListener("click", function() {
+  socket.emit("setPlayerInfo", {
+    nickname: nicknameInput.value,
+    color: colorInput.value
+  });
+  socket.emit("setReady", true);
+});
+
+socket.on("gameStart", function() {
+  lobbyDiv.style.display = "none";
+  gameDiv.style.display = "block";
+  startGameLoop();
+});
+
+socket.on("gameState", function(data) {
+  var players = data.players;
+  var npcs = data.npcs;
+
+  drawGame(players, npcs);
+});
+
+function startGameLoop() {
+  function update() {
+    if (localPlayer.alive) {
+      var dx = mousePos.x - gameCanvas.width / 2;
+      var dy = mousePos.y - gameCanvas.height / 2;
+      var angle = Math.atan2(dy, dx);
+      socket.emit("playerMove", {
+        angle: angle,
+        mouseDown: mouseDown
+      });
+    }
+    updateExplosions();
+    requestAnimationFrame(update);
+  }
+  update();
+}
+
+function drawGame(players, npcs) {
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+
+  // npc 표시
+  npcs.forEach(function(npc) {
+    if (npc.type === "narangde_shin") {
+      ctx.fillStyle = "purple";
+      ctx.beginPath();
+      ctx.arc(npc.x - localPlayer.x + gameCanvas.width / 2, npc.y - localPlayer.y + gameCanvas.height / 2, 20, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (npc.type === "eolkimchi") {
+      ctx.fillStyle = "cyan";
+      ctx.beginPath();
+      ctx.arc(npc.x - localPlayer.x + gameCanvas.width / 2, npc.y - localPlayer.y + gameCanvas.height / 2, 30, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (npc.type === "korean_goryeo_sam") {
+      ctx.fillStyle = "black";
+      ctx.beginPath();
+      ctx.arc(npc.x - localPlayer.x + gameCanvas.width / 2, npc.y - localPlayer.y + gameCanvas.height / 2, npc.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+}
