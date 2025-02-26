@@ -28,7 +28,7 @@ var explosions = [];
 var mousePos = { x: gameCanvas.width / 2, y: gameCanvas.height / 2 };
 var mouseDown = false;
 var isReady = false;
-var invincibilityActivated = false;
+var invincibilityActivated = false; // 한 게임당 1번 사용
 
 socket.on("connect", function() {
   myId = socket.id;
@@ -66,8 +66,6 @@ socket.on("lobbyUpdate", function(playersData) {
 socket.on("gameStart", function() {
   lobbyDiv.style.display = "none";
   gameDiv.style.display = "block";
-  // 게임 시작 시 무적 스킬 UI 보임
-  document.getElementById("skillDisplay").style.display = "block";
   var bgm = document.getElementById("bgm");
   bgm.currentTime = 0;
   bgm.volume = 0.33;
@@ -114,23 +112,20 @@ function displayCountdown(prefix, count, color, position) {
   }, 1000);
 }
 
-// 무적 스킬: 대기방에서는 무시, 게임 중에만 활성화
+// 무적 스킬: 대기방에서는 비활성화 (lobbyDiv 보이면 무시)
 document.addEventListener("keydown", function(e) {
   if(e.key === "1") {
-    if(lobbyDiv.style.display !== "none") return;
+    if(lobbyDiv.style.display !== "none") return; // 대기방에서는 무적 스킬 비활성화
     if(!invincibilityActivated) {
       invincibilityActivated = true;
       socket.emit("activateInvincibility");
-      // 전체 무적 UI (skillDisplay) 회색으로 변경
       var skillDisplay = document.getElementById("skillDisplay");
-      skillDisplay.style.color = "gray";
-      skillDisplay.style.borderColor = "gray";
-      skillDisplay.style.backgroundColor = "gray";
+      skillDisplay.style.color = "gray"; // 사용 후 회색
     }
   }
 });
 
-// zoneSound 재생
+// zoneSound 재생 (서버 브로드캐스트)
 socket.on("zoneSound", function() {
   var zone = document.getElementById("zoneSound");
   if(zone) {
@@ -150,6 +145,12 @@ socket.on("gameState", function(data) {
     localPlayer.x = me.x;
     localPlayer.y = me.y;
     localPlayer.alive = me.alive;
+    if(me.explosion) {
+      addExplosion(me.x, me.y);
+      var deadSound = document.getElementById("deadSound");
+      deadSound.currentTime = 0;
+      deadSound.play().catch(() => {});
+    }
   }
   for(var pid in playersData) {
     if(playersData[pid].explosion) {
@@ -254,19 +255,12 @@ function drawGame(playersData, npcs) {
   ctx.closePath();
   ctx.stroke();
 
-  // 플레이어 그리기 – 무적 상태이면 노랑/오렌지로 번갈아 깜빡임 및 "존야!!!!!" 텍스트 표시
   for(var pid in playersData) {
     var pl = playersData[pid];
     if(!pl.alive) continue;
     var px = pl.x - localPlayer.x + gameCanvas.width / 2;
     var py = pl.y - localPlayer.y + gameCanvas.height / 2;
-    if(pl.invincible) {
-      var flash = Math.floor(Date.now()/100) % 2 === 0;
-      // 본체: 노랑과 오렌지 번갈아
-      ctx.fillStyle = flash ? "yellow" : "orange";
-    } else {
-      ctx.fillStyle = pl.color;
-    }
+    ctx.fillStyle = pl.color;
     ctx.beginPath();
     ctx.arc(px, py, 20, 0, Math.PI * 2);
     ctx.fill();
@@ -274,10 +268,6 @@ function drawGame(playersData, npcs) {
     var needleLength = pl.needleLength || NEEDLE_LENGTH;
     ctx.strokeStyle = "red";
     ctx.lineWidth = pl.needleBonus ? 20 : 2;
-    if(pl.invincible) {
-      // 무적이면 needle도 노랑/오렌지 번갈아
-      ctx.strokeStyle = Math.floor(Date.now()/100) % 2 === 0 ? "yellow" : "orange";
-    }
     var startX = px + 20 * Math.cos(pl.angle);
     var startY = py + 20 * Math.sin(pl.angle);
     var endX = px + needleLength * Math.cos(pl.angle);
@@ -288,9 +278,9 @@ function drawGame(playersData, npcs) {
     ctx.stroke();
     ctx.lineWidth = 2;
 
-    ctx.fillStyle = pl.invincible ? (Math.floor(Date.now()/100) % 2 === 0 ? "yellow" : "orange") : "orange";
     var balloonX = px - 30 * Math.cos(pl.angle);
     var balloonY = py - 30 * Math.sin(pl.angle);
+    ctx.fillStyle = "orange";
     ctx.beginPath();
     ctx.arc(balloonX, balloonY, 20, 0, Math.PI * 2);
     ctx.fill();
@@ -298,15 +288,8 @@ function drawGame(playersData, npcs) {
     ctx.font = "36px Arial";
     ctx.fillStyle = "lime";
     ctx.fillText(pl.nickname, px - 40, py - 40);
-    if(pl.invincible) {
-      ctx.font = "bold 32px Arial";
-      ctx.fillStyle = "yellow";
-      ctx.textAlign = "center";
-      ctx.fillText("존야!!!!!", px, py - 50);
-    }
   }
 
-  // NPC 그리기 – 특수 NPC는 빠른 무지개색과 이름 표시
   for(var i = 0; i < npcs.length; i++) {
     var nn = npcs[i];
     if(!nn.alive) continue;

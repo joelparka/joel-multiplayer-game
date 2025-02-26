@@ -40,7 +40,7 @@
       color: red;
       pointer-events: none;
     }
-    /* 무적 스킬 디스플레이 (좌측 하단) – 게임 시작 후에만 보임 */
+    /* 무적 스킬 디스플레이: 좌측 하단, 직사각형 프레임, 황금빛 빠른 무지개 애니메이션 */
     #skillDisplay {
       position: absolute;
       bottom: 20px;
@@ -55,7 +55,6 @@
       color: yellow;
       animation: flash 0.5s infinite;
       background-color: rgba(0,0,0,0.5);
-      display: none;
     }
     #skillDisplay span {
       display: block;
@@ -64,7 +63,7 @@
     }
     @keyframes flash {
       0% { color: yellow; }
-      50% { color: orange; }
+      50% { color: gold; }
       100% { color: yellow; }
     }
   </style>

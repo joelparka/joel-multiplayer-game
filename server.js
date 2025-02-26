@@ -50,7 +50,7 @@ var spawnedGoryeosam = false; // 한국고려삼
 // Helper Functions
 // ----------------------
 
-// NPC 클래스 (type 없으면 "normal")
+// NPC 클래스 (type 없으면 normal)
 function NPC(x, y) {
   this.x = x;
   this.y = y;
@@ -173,8 +173,7 @@ function npcCollision() {
   for(let i = 0; i < npcs.length; i++) {
     let npc = npcs[i];
     if(!npc.alive) continue;
-    // 중요! 나랑드의 현신(Narang)은 일반 충돌 검사에서 제외
-    if(npc.type === "narang") continue;
+    // 일반 NPC (normal)와 충돌 (무적이면 무시)
     for(let pid in players) {
       let p = players[pid];
       if(!p.alive || p.invincible) continue;
@@ -270,7 +269,7 @@ io.on("connection", function(socket) {
   };
 
   socket.on("setPlayerInfo", function(data) {
-    let p = players[socket.id];
+    var p = players[socket.id];
     if(p) {
       p.nickname = data.nickname;
       p.color = data.color;
@@ -279,7 +278,7 @@ io.on("connection", function(socket) {
   });
 
   socket.on("setWinnerCount", function(num) {
-    let wCount = parseInt(num);
+    var wCount = parseInt(num);
     if(!isNaN(wCount) && wCount >= 1) {
       winnerCount = wCount;
       console.log("승자의 수 설정: " + winnerCount);
@@ -288,14 +287,14 @@ io.on("connection", function(socket) {
   });
 
   socket.on("setReady", function(rdy) {
-    let p = players[socket.id];
+    var p = players[socket.id];
     if(p) p.ready = rdy;
     io.emit("lobbyUpdate", players);
   });
 
-  // 무적 스킬 (키보드 1) – 게임 중에만 작동
+  // 무적 스킬 (키보드 1) – 게임 중에만
   socket.on("activateInvincibility", function() {
-    let p = players[socket.id];
+    var p = players[socket.id];
     if(p && !p.invincibilityUsed && gameRunning) {
       p.invincibilityUsed = true;
       p.invincible = true;
@@ -305,10 +304,10 @@ io.on("connection", function(socket) {
   });
 
   socket.on("playerMove", function(data) {
-    let p = players[socket.id];
+    var p = players[socket.id];
     if(!p || !p.alive || !gameRunning) return;
-    let curSpeed = Math.hypot(p.vx, p.vy);
-    let speedFactor = 1.0 - (curSpeed / PLAYER_MAX_SPEED) * TURN_DIFFICULTY;
+    var curSpeed = Math.hypot(p.vx, p.vy);
+    var speedFactor = 1.0 - (curSpeed / PLAYER_MAX_SPEED) * TURN_DIFFICULTY;
     if(speedFactor < 0) speedFactor = 0;
     if(data.mouseDown) {
       p.vx += PLAYER_ACCEL * Math.cos(data.angle) * speedFactor;
@@ -318,8 +317,8 @@ io.on("connection", function(socket) {
   });
 
   socket.on("startGame", function() {
-    let allReady = true;
-    for(let pid in players) {
+    var allReady = true;
+    for(var pid in players) {
       if(!players[pid].ready) { allReady = false; break; }
     }
     if(allReady && !gameRunning) {
@@ -328,7 +327,7 @@ io.on("connection", function(socket) {
       spawnedNarang = false;
       spawnedEolkimchi = false;
       spawnedGoryeosam = false;
-      // 일반 NPC 2마리 생성 (normal 타입)
+      // 일반 NPC 2마리 생성 (normal 타입; 충돌 대상으로)
       for(let i = 0; i < 2; i++) {
         let spn = getSafeSpawn(npcs, players);
         let npc = new NPC(spn.x, spn.y);
@@ -348,6 +347,7 @@ io.on("connection", function(socket) {
         pl.score = 0;
         pl.invincible = false;
         pl.freezeTimer = 0;
+        // invincibilityUsed는 유지 (한 게임당 1번)
         let s = getSafeSpawn(npcs, players);
         pl.x = s.x;
         pl.y = s.y;
@@ -366,7 +366,7 @@ io.on("connection", function(socket) {
             narang.type = "narang";
             narang.vx = 0;
             narang.vy = 0;
-            narang.size = 40; // 40x40 크기
+            narang.size = 40; // 40x40 (나랑드의 현신)
             npcs.push(narang);
             spawnedNarang = true;
             io.emit("gameMessage", { text: "나랑드의 현신이 등장했습니다. 처치하면 캐릭터가 강화됩니다.", duration: 0 });
@@ -401,7 +401,7 @@ io.on("connection", function(socket) {
               y: MAP_HEIGHT/2,
               alive: true,
               type: "goryeosam",
-              size: 200, // 초기 크기: 200 (플레이어의 10배, 기존 20*10)
+              size: 20,
               growthCountdown: 10 * SERVER_FPS
             };
             npcs.push(goryeosam);
@@ -418,10 +418,10 @@ io.on("connection", function(socket) {
   });
 
   socket.on("playerMove", function(data) {
-    let p = players[socket.id];
+    var p = players[socket.id];
     if(!p || !p.alive || !gameRunning) return;
-    let curSpeed = Math.hypot(p.vx, p.vy);
-    let speedFactor = 1.0 - (curSpeed / PLAYER_MAX_SPEED) * TURN_DIFFICULTY;
+    var curSpeed = Math.hypot(p.vx, p.vy);
+    var speedFactor = 1.0 - (curSpeed / PLAYER_MAX_SPEED) * TURN_DIFFICULTY;
     if(speedFactor < 0) speedFactor = 0;
     if(data.mouseDown) {
       p.vx += PLAYER_ACCEL * Math.cos(data.angle) * speedFactor;
@@ -437,24 +437,25 @@ io.on("connection", function(socket) {
   });
 });
 
-setInterval(updateGame, 1000 / SERVER_FPS);
-
+// ----------------------
+// Game Loop and Check Game Over
+// ----------------------
 function updateGame() {
   try {
     if(!gameRunning) return;
-    for(let pid in players) {
-      let p = players[pid];
+    for(var pid in players) {
+      var p = players[pid];
       if(p.alive) p.score = (p.score || 0) + 1;
     }
-    let ranking = Object.values(players).filter(p => p.alive).sort((a, b) => b.score - a.score);
-    for(let pid in players) {
-      let p = players[pid];
+    var ranking = Object.values(players).filter(p => p.alive).sort((a, b) => b.score - a.score);
+    for(var pid in players) {
+      var p = players[pid];
       if(!p.alive) continue;
       p.vx *= FRICTION;
       p.vy *= FRICTION;
-      let spd = Math.hypot(p.vx, p.vy);
+      var spd = Math.hypot(p.vx, p.vy);
       if(spd > PLAYER_MAX_SPEED) {
-        let sc = PLAYER_MAX_SPEED / spd;
+        var sc = PLAYER_MAX_SPEED / spd;
         p.vx *= sc;
         p.vy *= sc;
       }
@@ -464,6 +465,7 @@ function updateGame() {
       if(p.y < 0) p.y = 0;
       if(p.x > MAP_WIDTH) p.x = MAP_WIDTH;
       if(p.y > MAP_HEIGHT) p.y = MAP_HEIGHT;
+      // 무적 스킬 효과: 3초간 정지 및 충돌 무시
       if(p.invincible && p.freezeTimer > 0) {
         p.vx = 0;
         p.vy = 0;
@@ -471,50 +473,50 @@ function updateGame() {
         if(p.freezeTimer <= 0) p.invincible = false;
       }
     }
-    for(let i = 0; i < npcs.length; i++) {
-      let n = npcs[i];
+    for(var i = 0; i < npcs.length; i++) {
+      var n = npcs[i];
       if(!n.alive) continue;
       if(n.type === "narang") {
         if(n.x < 100 || n.x > MAP_WIDTH - 100 || n.y < 100 || n.y > MAP_HEIGHT - 100) {
           if(ranking.length > 0) {
-            let target = ranking[ranking.length - 1];
-            let d = Math.hypot(n.x - target.x, n.y - target.y);
+            var target = ranking[ranking.length - 1];
+            var d = Math.hypot(n.x - target.x, n.y - target.y);
             if(d > 300) {
-              let desiredAngle = Math.atan2(target.y - n.y, target.x - n.x);
-              let dashSpeed = PLAYER_MAX_SPEED * 2.5;
-              let dashAccel = dashSpeed / SERVER_FPS;
+              var desiredAngle = Math.atan2(target.y - n.y, target.x - n.x);
+              var dashSpeed = PLAYER_MAX_SPEED * 2.5;
+              var dashAccel = dashSpeed / SERVER_FPS;
               n.vx += dashAccel * Math.cos(desiredAngle);
               n.vy += dashAccel * Math.sin(desiredAngle);
             } else {
-              let desiredAngle = Math.atan2(n.y - target.y, n.x - target.x);
-              let specialSpeed = PLAYER_MAX_SPEED * 2;
-              let specialAccel = specialSpeed / (2 * SERVER_FPS);
+              var desiredAngle = Math.atan2(n.y - target.y, n.x - target.x);
+              var specialSpeed = PLAYER_MAX_SPEED * 2;
+              var specialAccel = specialSpeed / (2 * SERVER_FPS);
               n.vx += specialAccel * Math.cos(desiredAngle);
               n.vy += specialAccel * Math.sin(desiredAngle);
             }
           }
         } else {
-          let closest = null;
-          let minD = Infinity;
-          for(let pid in players) {
-            let pl = players[pid];
+          var closest = null;
+          var minD = Infinity;
+          for(var pid in players) {
+            var pl = players[pid];
             if(!pl.alive) continue;
-            let d = Math.hypot(pl.x - n.x, pl.y - n.y);
+            var d = Math.hypot(pl.x - n.x, pl.y - n.y);
             if(d < minD) { minD = d; closest = pl; }
           }
           if(closest) {
-            let desiredAngle = Math.atan2(n.y - closest.y, n.x - closest.x);
-            let specialSpeed = PLAYER_MAX_SPEED * 2;
-            let specialAccel = specialSpeed / (2 * SERVER_FPS);
+            var desiredAngle = Math.atan2(n.y - closest.y, n.x - closest.x);
+            var specialSpeed = PLAYER_MAX_SPEED * 2;
+            var specialAccel = specialSpeed / (2 * SERVER_FPS);
             n.vx += specialAccel * Math.cos(desiredAngle);
             n.vy += specialAccel * Math.sin(desiredAngle);
           }
         }
         n.vx *= FRICTION;
         n.vy *= FRICTION;
-        let sp = Math.hypot(n.vx, n.vy);
+        var sp = Math.hypot(n.vx, n.vy);
         if(sp > PLAYER_MAX_SPEED * 2) {
-          let sc = (PLAYER_MAX_SPEED * 2) / sp;
+          var sc = (PLAYER_MAX_SPEED * 2) / sp;
           n.vx *= sc;
           n.vy *= sc;
         }
@@ -526,25 +528,25 @@ function updateGame() {
         if(n.y > MAP_HEIGHT) n.y = MAP_HEIGHT;
       }
       else if(n.type === "eolkimchi") {
-        let closest = null;
-        let minD = Infinity;
-        for(let pid in players) {
-          let pl = players[pid];
+        var closest = null;
+        var minD = Infinity;
+        for(var pid in players) {
+          var pl = players[pid];
           if(!pl.alive) continue;
-          let d = Math.hypot(pl.x - n.x, pl.y - n.y);
+          var d = Math.hypot(pl.x - n.x, pl.y - n.y);
           if(d < minD) { minD = d; closest = pl; }
         }
         if(closest) {
-          let desiredAngle = Math.atan2(closest.y - n.y, closest.x - n.x);
-          let accel = PLAYER_MAX_SPEED / (PLAYER_ACCEL_TIME * SERVER_FPS);
+          var desiredAngle = Math.atan2(closest.y - n.y, closest.x - n.x);
+          var accel = PLAYER_MAX_SPEED / (PLAYER_ACCEL_TIME * SERVER_FPS);
           n.vx += accel * Math.cos(desiredAngle);
           n.vy += accel * Math.sin(desiredAngle);
         }
         n.vx *= FRICTION;
         n.vy *= FRICTION;
-        let sp = Math.hypot(n.vx, n.vy);
+        var sp = Math.hypot(n.vx, n.vy);
         if(sp > PLAYER_MAX_SPEED) {
-          let sc = PLAYER_MAX_SPEED / sp;
+          var sc = PLAYER_MAX_SPEED / sp;
           n.vx *= sc;
           n.vy *= sc;
         }
@@ -566,7 +568,7 @@ function updateGame() {
       }
       else if(n.type === "normal") {
         if(ranking.length > 0) {
-          let target = (n.index === 1) ? ranking[0] : (ranking[1] || ranking[0]);
+          var target = (n.index === 1) ? ranking[0] : (ranking[1] || ranking[0]);
           if(target) n.update(target.x, target.y, NPC_ACCEL, NPC_MAX_SPEED);
         }
       }
@@ -593,11 +595,9 @@ function updateGame() {
   }
 }
 
-setInterval(updateGame, 1000 / SERVER_FPS);
-
 function checkGameOver() {
-  let arr = Object.values(players);
-  let alive = [];
+  var arr = Object.values(players);
+  var alive = [];
   for(let i = 0; i < arr.length; i++) {
     if(arr[i].alive) alive.push(arr[i]);
   }
@@ -615,11 +615,11 @@ function checkGameOver() {
   if(alive.length <= winnerCount && gameRunning) {
     gameRunning = false;
     if(alive.length > 0) {
-      let names = [];
+      var names = [];
       for(let x = 0; x < alive.length; x++) {
         names.push(alive[x].nickname);
       }
-      let winnerNames = names.join(", ");
+      var winnerNames = names.join(", ");
       io.emit("gameOver", { winner: winnerNames });
       console.log("승자들: " + winnerNames);
     } else {
@@ -633,6 +633,8 @@ function checkGameOver() {
     }
   }
 }
+
+setInterval(updateGame, 1000 / SERVER_FPS);
 
 var PORT = 3000;
 server.listen(PORT, function() {
