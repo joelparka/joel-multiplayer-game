@@ -67,13 +67,14 @@ socket.on("lobbyUpdate", function (players) {
 socket.on("gameStart", function () {
   lobbyDiv.style.display = "none";
   gameDiv.style.display = "block";
-  // 배경음악 재생
+  // 배경음악 재생 (유저 제스처 후 재생되도록)
   var bgm = document.getElementById("bgm");
-  bgm.play();
+  bgm.currentTime = 0;
+  bgm.play().catch(() => {});
   startGameLoop();
 });
 
-// 게임 메시지 수신 (카운트다운, 고정시간 메시지 등)
+// 게임 메시지 수신 (카운트다운, 고정 메시지 등)
 socket.on("gameMessage", function (data) {
   if (data.countdown) {
     displayCountdown(data.text, data.countdown, data.color, data.position);
@@ -123,7 +124,8 @@ socket.on("gameState", function (data) {
     if (me.explosion) {
       addExplosion(me.x, me.y);
       var deadSound = document.getElementById("deadSound");
-      deadSound.play();
+      deadSound.currentTime = 0;
+      deadSound.play().catch(() => {});
     }
   }
   // 다른 플레이어 폭발 효과
@@ -292,7 +294,7 @@ function drawGame(players, npcs) {
       ctx.fillStyle = "hsl(" + hue + ", 100%, 50%)";
       ctx.fillRect(nx - 20, ny - 20, 40, 40);
     } else if (nn.type === "eolkimchi") {
-      // 얼김치: 별 모양 (플레이어 크기의 4배, 즉 반지름 80 대신 40로 그려줌) + 회전하는 바늘
+      // 얼김치: 별 모양 (플레이어 크기의 4배, 반지름 40) + 회전하는 바늘
       var hue = (Date.now() / 10) % 360;
       ctx.fillStyle = "hsl(" + hue + ", 100%, 50%)";
       drawStar(ctx, nx, ny, 5, 40, 20);
@@ -353,7 +355,6 @@ function drawGame(players, npcs) {
     if (!npc2.alive) continue;
     var mmx2 = miniX + (npc2.x * scaleX);
     var mmy2 = miniY + (npc2.y * scaleY);
-    // 각 타입별로 색상 구분
     if (npc2.type === "narang") ctx.fillStyle = "magenta";
     else if (npc2.type === "eolkimchi") ctx.fillStyle = "yellow";
     else if (npc2.type === "goryeosam") ctx.fillStyle = "black";

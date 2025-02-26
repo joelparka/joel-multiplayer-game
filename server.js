@@ -46,40 +46,25 @@ var BODY_RADIUS = 20;
 var BODY_DIAMETER = 40;
 var BOUNCE_FACTOR = 0.5;
 
-// NPC class (기본 NPC)
+// NPC 클래스 (기본 NPC)
 function NPC(x, y) {
   this.x = x;
   this.y = y;
   this.vx = 0;
   this.vy = 0;
   this.alive = true;
-  // type이 없으면 일반 NPC로 간주
+  // type이 없으면 일반 NPC("normal")로 간주
+  this.type = this.type || "normal";
 }
-NPC.prototype.update = function (players) {
-  var closest = null;
-  var minD = Infinity;
-  for (var pid in players) {
-    var pl = players[pid];
-    if (!pl.alive) continue;
-    var dist = Math.hypot(pl.x - this.x, pl.y - this.y);
-    if (dist < minD) {
-      minD = dist;
-      closest = pl;
-    }
-  }
-  if (closest) {
-    var desiredAngle = Math.atan2(closest.y - this.y, closest.x - this.x);
-    var curSpeed = Math.hypot(this.vx, this.vy);
-    var speedFactor = 1.0 - (curSpeed / NPC_MAX_SPEED) * TURN_DIFFICULTY;
-    if (speedFactor < 0) speedFactor = 0;
-    this.vx += NPC_ACCEL * Math.cos(desiredAngle) * speedFactor;
-    this.vy += NPC_ACCEL * Math.sin(desiredAngle) * speedFactor;
-  }
+NPC.prototype.update = function (targetX, targetY, accel, maxSpeed) {
+  var desiredAngle = Math.atan2(targetY - this.y, targetX - this.x);
+  this.vx += accel * Math.cos(desiredAngle);
+  this.vy += accel * Math.sin(desiredAngle);
   this.vx *= FRICTION;
   this.vy *= FRICTION;
   var sp = Math.hypot(this.vx, this.vy);
-  if (sp > NPC_MAX_SPEED) {
-    var sc = NPC_MAX_SPEED / sp;
+  if (sp > maxSpeed) {
+    var sc = maxSpeed / sp;
     this.vx *= sc;
     this.vy *= sc;
   }
@@ -146,7 +131,7 @@ function pointLineDist(px, py, x1, y1, x2, y2) {
   return Math.hypot(dx, dy);
 }
 
-// 플레이어의 needle와 다른 플레이어의 풍선 충돌 (기존)
+// 플레이어 needle와 다른 플레이어 풍선 충돌 (기존)
 function arrowBalloonCollision() {
   var plist = Object.entries(players);
   for (var i = 0; i < plist.length; i++) {
@@ -154,8 +139,9 @@ function arrowBalloonCollision() {
     if (!A.alive) continue;
     var startX = A.x + PLAYER_RADIUS * Math.cos(A.angle);
     var startY = A.y + PLAYER_RADIUS * Math.sin(A.angle);
-    var endX = A.x + (A.needleLength || NEEDLE_LENGTH) * Math.cos(A.angle);
-    var endY = A.y + (A.needleLength || NEEDLE_LENGTH) * Math.sin(A.angle);
+    var curNeedle = A.needleLength || NEEDLE_LENGTH;
+    var endX = A.x + curNeedle * Math.cos(A.angle);
+    var endY = A.y + curNeedle * Math.sin(A.angle);
 
     for (var j = 0; j < plist.length; j++) {
       if (i === j) continue;
@@ -212,42 +198,44 @@ function npcCollision() {
   for (var i = 0; i < npcs.length; i++) {
     var npc = npcs[i];
     if (!npc.alive) continue;
-    // 일반 NPC (타입이 없거나 'normal')
-    if (!npc.type || npc.type === "normal") {
-      for (var pid in players) {
-        var p = players[pid];
-        if (!p.alive) continue;
-        var dist = Math.hypot(npc.x - p.x, npc.y - p.y);
-        if (dist < npcRad + PLAYER_RADIUS) {
-          p.alive = false;
-          p.explosion = true;
-        }
+    if (npc.type === "normal") {
+      // 일반 NPC는 아래에서 따로 처리
+      continue;
+    }
+    // 특수 NPC (나랑드, 얼김치, 한국고려삼)는 기존 충돌 처리
+    for (var pid in players) {
+      var p = players[pid];
+      if (!p.alive) continue;
+      var dist = Math.hypot(npc.x - p.x, npc.y - p.y);
+      if (dist < npcRad + PLAYER_RADIUS) {
+        p.alive = false;
+        p.explosion = true;
       }
     }
   }
 }
 
-// 나랑드의 현신과 플레이어 needle 충돌 처리
+// 나랑드의 현신(Narang)과 플레이어 needle 충돌 처리
 function specialNPCCollision() {
   for (var i = 0; i < npcs.length; i++) {
     var npc = npcs[i];
     if (!npc.alive || npc.type !== "narang") continue;
-    // 각 플레이어의 needle (시작점은 플레이어 원 둘레, 길이는 NEEDLE_LENGTH 혹은 늘어난 값)
+    // 각 플레이어의 needle 충돌 (충돌 임계값을 30으로 상향)
     for (var pid in players) {
       var p = players[pid];
       if (!p.alive) continue;
-      var needleLength = p.needleLength || NEEDLE_LENGTH;
+      var curNeedle = p.needleLength || NEEDLE_LENGTH;
       var startX = p.x + PLAYER_RADIUS * Math.cos(p.angle);
       var startY = p.y + PLAYER_RADIUS * Math.sin(p.angle);
-      var endX = p.x + needleLength * Math.cos(p.angle);
-      var endY = p.y + needleLength * Math.sin(p.angle);
+      var endX = p.x + curNeedle * Math.cos(p.angle);
+      var endY = p.y + curNeedle * Math.sin(p.angle);
       var dist = pointLineDist(npc.x, npc.y, startX, startY, endX, endY);
-      if (dist < 20) { // 현신 크기와 비슷한 범위
+      if (dist < 30) {
         npc.alive = false;
-        // 단 한 명만 보너스를 받도록
-        p.needleLength = (p.needleLength || NEEDLE_LENGTH) * 2;
+        // 단 한 명에게만 보너스 적용
+        p.needleLength = curNeedle * 2;
         p.needleBonus = true;
-        io.emit("gameMessage", { text: p.nickname + "께서 나랑드의 현신이 처치되어 4억원을 벌었습니다.." });
+        io.emit("gameMessage", { text: p.nickname + "께서 나랑드의 현신을 처치해 4억원을 벌었습니다.." });
         break;
       }
     }
@@ -295,7 +283,7 @@ function goryeosamCollision() {
   }
 }
 
-// 소켓
+// 소켓 연결
 io.on("connection", function (socket) {
   console.log("플레이어 접속:" + socket.id);
 
@@ -309,7 +297,8 @@ io.on("connection", function (socket) {
     vy: 0,
     angle: 0,
     alive: true,
-    explosion: false
+    explosion: false,
+    score: 0
   };
 
   socket.on("setPlayerInfo", function (data) {
@@ -345,10 +334,12 @@ io.on("connection", function (socket) {
     if (allReady && !gameRunning) {
       gameRunning = true;
       npcs = [];
-      // 기본 NPC 2마리 생성
+      // 일반 NPC 2마리 생성 (각각 npc.index 1,2 지정)
       for (var i = 0; i < 2; i++) {
         var spn = getSafeSpawn(npcs, players);
         var npc = new NPC(spn.x, spn.y);
+        npc.index = i + 1; // npc.index 1이면 1위, 2이면 2위 목표
+        npc.type = "normal";
         npcs.push(npc);
       }
       // respawn players
@@ -360,12 +351,13 @@ io.on("connection", function (socket) {
         pl.vy = 0;
         pl.needleLength = NEEDLE_LENGTH;
         pl.needleBonus = false;
+        pl.score = 0;
         var s = getSafeSpawn(npcs, players);
         pl.x = s.x;
         pl.y = s.y;
       }
       io.emit("gameStart");
-      console.log("모든 플레이어가 준비 완료. 게임 시작! (승자수:" + winnerCount + ")");
+      console.log("모든 플레이어 준비 완료. 게임 시작! (승자수:" + winnerCount + ")");
 
       // ------------------------------
       // 게임 이벤트 타이머 (서버 측)
@@ -443,6 +435,19 @@ io.on("connection", function (socket) {
 // 메인 게임 루프
 function updateGame() {
   if (!gameRunning) return;
+
+  // 각 플레이어의 생존 점수 (누적)
+  for (var pid in players) {
+    var p = players[pid];
+    if (p.alive) {
+      p.score = (p.score || 0) + 1;
+    }
+  }
+  // 살아있는 플레이어들을 점수 내림차순(1위부터)로 정렬
+  var ranking = Object.values(players)
+    .filter(p => p.alive)
+    .sort((a, b) => b.score - a.score);
+
   // 플레이어 이동 처리
   for (var pid in players) {
     var p = players[pid];
@@ -462,29 +467,55 @@ function updateGame() {
     if (p.x > MAP_WIDTH) p.x = MAP_WIDTH;
     if (p.y > MAP_HEIGHT) p.y = MAP_HEIGHT;
   }
+
   // NPC 업데이트
   for (var i = 0; i < npcs.length; i++) {
     var n = npcs[i];
     if (!n.alive) continue;
+    // 특수 NPC: 나랑드의 현신
     if (n.type === "narang") {
-      // 나랑드의 현신: 플레이어에게서 멀어지도록 이동
-      var closest = null;
-      var minD = Infinity;
-      for (var pid in players) {
-        var pl = players[pid];
-        if (!pl.alive) continue;
-        var d = Math.hypot(pl.x - n.x, pl.y - n.y);
-        if (d < minD) {
-          minD = d;
-          closest = pl;
+      // 만약 맵의 가장자리(100px 이내)에 도달하면
+      if (n.x < 100 || n.x > MAP_WIDTH - 100 || n.y < 100 || n.y > MAP_HEIGHT - 100) {
+        // "꼴찌" (가장 낮은 점수)의 플레이어를 목표로 설정
+        if (ranking.length > 0) {
+          var target = ranking[ranking.length - 1];
+          var d = Math.hypot(n.x - target.x, n.y - target.y);
+          if (d > 300) {
+            // 충분히 멀면 돌진 (평소보다 강한 가속)
+            var desiredAngle = Math.atan2(target.y - n.y, target.x - n.x);
+            var dashSpeed = PLAYER_MAX_SPEED * 2.5;
+            var dashAccel = dashSpeed / (1 * SERVER_FPS);
+            n.vx += dashAccel * Math.cos(desiredAngle);
+            n.vy += dashAccel * Math.sin(desiredAngle);
+          } else {
+            // 거리가 가까우면 다시 도망치듯 반대 방향으로
+            var desiredAngle = Math.atan2(n.y - target.y, n.x - target.x);
+            var specialSpeed = PLAYER_MAX_SPEED * 2;
+            var specialAccel = specialSpeed / (2 * SERVER_FPS);
+            n.vx += specialAccel * Math.cos(desiredAngle);
+            n.vy += specialAccel * Math.sin(desiredAngle);
+          }
         }
-      }
-      if (closest) {
-        var desiredAngle = Math.atan2(n.y - closest.y, n.x - closest.x);
-        var specialSpeed = PLAYER_MAX_SPEED * 2;
-        var specialAccel = specialSpeed / (2 * SERVER_FPS);
-        n.vx += specialAccel * Math.cos(desiredAngle);
-        n.vy += specialAccel * Math.sin(desiredAngle);
+      } else {
+        // 평소에는 가장 가까운 플레이어로부터 도망감
+        var closest = null;
+        var minD = Infinity;
+        for (var pid in players) {
+          var pl = players[pid];
+          if (!pl.alive) continue;
+          var d = Math.hypot(pl.x - n.x, pl.y - n.y);
+          if (d < minD) {
+            minD = d;
+            closest = pl;
+          }
+        }
+        if (closest) {
+          var desiredAngle = Math.atan2(n.y - closest.y, n.x - closest.x);
+          var specialSpeed = PLAYER_MAX_SPEED * 2;
+          var specialAccel = specialSpeed / (2 * SERVER_FPS);
+          n.vx += specialAccel * Math.cos(desiredAngle);
+          n.vy += specialAccel * Math.sin(desiredAngle);
+        }
       }
       n.vx *= FRICTION;
       n.vy *= FRICTION;
@@ -500,8 +531,9 @@ function updateGame() {
       if (n.y < 0) n.y = 0;
       if (n.x > MAP_WIDTH) n.x = MAP_WIDTH;
       if (n.y > MAP_HEIGHT) n.y = MAP_HEIGHT;
-    } else if (n.type === "eolkimchi") {
-      // 얼김치: 플레이어를 추적 (플레이어 최고속도 기준)
+    }
+    // 특수 NPC: 얼김치
+    else if (n.type === "eolkimchi") {
       var closest = null;
       var minD = Infinity;
       for (var pid in players) {
@@ -515,12 +547,9 @@ function updateGame() {
       }
       if (closest) {
         var desiredAngle = Math.atan2(closest.y - n.y, closest.x - n.x);
-        var curSpeed = Math.hypot(n.vx, n.vy);
-        var speedFactor = 1.0 - (curSpeed / PLAYER_MAX_SPEED) * TURN_DIFFICULTY;
-        if (speedFactor < 0) speedFactor = 0;
         var accel = PLAYER_MAX_SPEED / (PLAYER_ACCEL_TIME * SERVER_FPS);
-        n.vx += accel * Math.cos(desiredAngle) * speedFactor;
-        n.vy += accel * Math.sin(desiredAngle) * speedFactor;
+        n.vx += accel * Math.cos(desiredAngle);
+        n.vy += accel * Math.sin(desiredAngle);
       }
       n.vx *= FRICTION;
       n.vy *= FRICTION;
@@ -536,20 +565,32 @@ function updateGame() {
       if (n.y < 0) n.y = 0;
       if (n.x > MAP_WIDTH) n.x = MAP_WIDTH;
       if (n.y > MAP_HEIGHT) n.y = MAP_HEIGHT;
-      // 바늘 회전 (2초에 한바퀴)
       if (n.needleAngle === undefined) n.needleAngle = 0;
       n.needleAngle += Math.PI / 30;
-    } else if (n.type === "goryeosam") {
-      // 한국고려삼: 정지해 있으며 10초마다 크기가 2배씩 증가
+    }
+    // 특수 NPC: 한국고려삼
+    else if (n.type === "goryeosam") {
       n.growthCountdown--;
       if (n.growthCountdown <= 0) {
         n.size *= 2;
         n.growthCountdown = 10 * SERVER_FPS;
       }
       // 움직이지 않음
+    }
+    // 일반 NPC ("normal") – 두 NPC가 서로 다른 목표(1위, 2위)를 따라가도록
+    else if (n.type === "normal") {
+      var target = null;
+      if (n.index === 1) {
+        target = ranking[0];
+      } else if (n.index === 2) {
+        target = ranking[1] || ranking[0];
+      }
+      if (target) {
+        n.update(target.x, target.y, NPC_ACCEL, NPC_MAX_SPEED);
+      }
     } else {
-      // 일반 NPC
-      n.update(players);
+      // 기본 업데이트 (없을 경우)
+      n.update(n.x, n.y, NPC_ACCEL, NPC_MAX_SPEED);
     }
   }
 
