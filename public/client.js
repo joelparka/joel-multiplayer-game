@@ -20,11 +20,7 @@ window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
 
 var myId = null;
-var localPlayer = {
-  x: 0, y: 0,
-  angle: 0,
-  alive: true
-};
+var localPlayer = { x: 0, y: 0, angle: 0, alive: true };
 var mapWidth = 16000;
 var mapHeight = 16000;
 var explosions = [];
@@ -67,17 +63,20 @@ socket.on("lobbyUpdate", function (players) {
 socket.on("gameStart", function () {
   lobbyDiv.style.display = "none";
   gameDiv.style.display = "block";
-  // 배경음악 재생 (유저 제스처 후 재생되도록)
   var bgm = document.getElementById("bgm");
   bgm.currentTime = 0;
+  // 볼륨을 1/3로 설정 (0.33)
+  bgm.volume = 0.33;
   bgm.play().catch(() => {});
   startGameLoop();
 });
 
-// 게임 메시지 수신 (카운트다운, 고정 메시지 등)
+// 게임 메시지 수신
 socket.on("gameMessage", function (data) {
   if (data.countdown) {
     displayCountdown(data.text, data.countdown, data.color, data.position);
+  } else if (data.duration === 0) {
+    displayMessage(data.text, 0);
   } else if (data.duration) {
     displayMessage(data.text, data.duration);
   } else {
@@ -88,9 +87,11 @@ socket.on("gameMessage", function (data) {
 function displayMessage(text, duration) {
   var overlay = document.getElementById("messageOverlay");
   overlay.innerText = text;
-  setTimeout(function () {
-    overlay.innerText = "";
-  }, duration * 1000);
+  if (duration > 0) {
+    setTimeout(function () {
+      overlay.innerText = "";
+    }, duration * 1000);
+  }
 }
 
 function displayCountdown(prefix, count, color, position) {
@@ -128,14 +129,12 @@ socket.on("gameState", function (data) {
       deadSound.play().catch(() => {});
     }
   }
-  // 다른 플레이어 폭발 효과
   for (var pid in players) {
     if (players[pid].explosion) {
       addExplosion(players[pid].x, players[pid].y);
       players[pid].explosion = false;
     }
   }
-
   drawGame(players, npcs);
 });
 
@@ -150,7 +149,6 @@ socket.on("gameOver", function (info) {
   explosions = [];
 });
 
-// 마우스 이벤트
 gameCanvas.addEventListener("mousemove", function (e) {
   mousePos.x = e.clientX;
   mousePos.y = e.clientY;
@@ -168,10 +166,7 @@ function startGameLoop() {
       var dx = mousePos.x - gameCanvas.width / 2;
       var dy = mousePos.y - gameCanvas.height / 2;
       var angle = Math.atan2(dy, dx);
-      socket.emit("playerMove", {
-        angle: angle,
-        mouseDown: mouseDown
-      });
+      socket.emit("playerMove", { angle: angle, mouseDown: mouseDown });
     }
     updateExplosions();
     requestAnimationFrame(update);
@@ -179,7 +174,6 @@ function startGameLoop() {
   update();
 }
 
-// explosion 효과
 function addExplosion(x, y) {
   explosions.push({ x: x, y: y, frame: 0 });
 }
@@ -213,12 +207,10 @@ function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius) {
   ctx.fill();
 }
 
-// 게임 그리기
 function drawGame(players, npcs) {
   ctx.fillStyle = "black";
   ctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
 
-  // 격자 (회색)
   var gridSize = 200;
   var offsetX = -localPlayer.x % gridSize;
   var offsetY = -localPlayer.y % gridSize;
@@ -229,7 +221,6 @@ function drawGame(players, npcs) {
     }
   }
 
-  // 빨간 테두리 => 맵 경계
   var leftEdge = -localPlayer.x + gameCanvas.width / 2;
   var topEdge = -localPlayer.y + gameCanvas.height / 2;
   var rightEdge = leftEdge + mapWidth;
@@ -243,22 +234,20 @@ function drawGame(players, npcs) {
   ctx.closePath();
   ctx.stroke();
 
-  // 플레이어 그리기
   for (var pid in players) {
     var pl = players[pid];
     if (!pl.alive) continue;
     var px = pl.x - localPlayer.x + gameCanvas.width / 2;
     var py = pl.y - localPlayer.y + gameCanvas.height / 2;
-    // 플레이어 본체
     ctx.fillStyle = pl.color;
     ctx.beginPath();
     ctx.arc(px, py, 20, 0, Math.PI * 2);
     ctx.fill();
 
-    // needle (보너스 적용시 길이/두께 변경)
     var needleLength = pl.needleLength || 40;
+    // bonus일 경우 두께를 기본 2에서 10배(20)로 설정
     ctx.strokeStyle = "red";
-    ctx.lineWidth = pl.needleBonus ? 4 : 2;
+    ctx.lineWidth = pl.needleBonus ? 20 : 2;
     var startX = px + 20 * Math.cos(pl.angle);
     var startY = py + 20 * Math.sin(pl.angle);
     var endX = px + needleLength * Math.cos(pl.angle);
@@ -268,7 +257,6 @@ function drawGame(players, npcs) {
     ctx.lineTo(endX, endY);
     ctx.stroke();
 
-    // 풍선
     var balloonX = px - 30 * Math.cos(pl.angle);
     var balloonY = py - 30 * Math.sin(pl.angle);
     ctx.fillStyle = "orange";
@@ -276,29 +264,24 @@ function drawGame(players, npcs) {
     ctx.arc(balloonX, balloonY, 20, 0, Math.PI * 2);
     ctx.fill();
 
-    // 닉네임
     ctx.font = "36px Arial";
     ctx.fillStyle = "lime";
     ctx.fillText(pl.nickname, px - 40, py - 40);
   }
 
-  // NPC 그리기
   for (var i = 0; i < npcs.length; i++) {
     var nn = npcs[i];
     if (!nn.alive) continue;
     var nx = nn.x - localPlayer.x + gameCanvas.width / 2;
     var ny = nn.y - localPlayer.y + gameCanvas.height / 2;
     if (nn.type === "narang") {
-      // 나랑드의 현신: 무지개색 네모 (40x40)
       var hue = (Date.now() / 10) % 360;
       ctx.fillStyle = "hsl(" + hue + ", 100%, 50%)";
       ctx.fillRect(nx - 20, ny - 20, 40, 40);
     } else if (nn.type === "eolkimchi") {
-      // 얼김치: 별 모양 (플레이어 크기의 4배, 반지름 40) + 회전하는 바늘
       var hue = (Date.now() / 10) % 360;
       ctx.fillStyle = "hsl(" + hue + ", 100%, 50%)";
       drawStar(ctx, nx, ny, 5, 40, 20);
-      // 회전하는 바늘
       var needleLen = 100;
       var endX = nx + needleLen * Math.cos(nn.needleAngle);
       var endY = ny + needleLen * Math.sin(nn.needleAngle);
@@ -309,8 +292,8 @@ function drawGame(players, npcs) {
       ctx.lineTo(endX, endY);
       ctx.stroke();
     } else if (nn.type === "goryeosam") {
-      // 한국고려삼: 천천히 빛나는 검은색 동그라미 (현재 크기)
-      ctx.fillStyle = "black";
+      var hue = (Date.now() / 10) % 360;
+      ctx.fillStyle = "hsl(" + hue + ", 100%, 50%)";
       ctx.beginPath();
       ctx.arc(nx, ny, nn.size, 0, Math.PI * 2);
       ctx.fill();
@@ -318,7 +301,6 @@ function drawGame(players, npcs) {
       ctx.lineWidth = 5;
       ctx.stroke();
     } else {
-      // 일반 NPC
       ctx.fillStyle = "white";
       ctx.beginPath();
       ctx.arc(nx, ny, 20, 0, Math.PI * 2);
@@ -326,7 +308,6 @@ function drawGame(players, npcs) {
     }
   }
 
-  // 미니맵 그리기
   var miniSize = 200;
   var miniX = gameCanvas.width - miniSize - 20;
   var miniY = gameCanvas.height - miniSize - 20;
@@ -337,8 +318,6 @@ function drawGame(players, npcs) {
 
   var scaleX = miniSize / mapWidth;
   var scaleY = miniSize / mapHeight;
-
-  // 플레이어 미니맵 점
   for (var pid2 in players) {
     var p2 = players[pid2];
     if (!p2.alive) continue;
@@ -349,7 +328,6 @@ function drawGame(players, npcs) {
     ctx.arc(mmx, mmy, 4, 0, Math.PI * 2);
     ctx.fill();
   }
-  // NPC 미니맵 점
   for (var j2 = 0; j2 < npcs.length; j2++) {
     var npc2 = npcs[j2];
     if (!npc2.alive) continue;
@@ -357,7 +335,7 @@ function drawGame(players, npcs) {
     var mmy2 = miniY + (npc2.y * scaleY);
     if (npc2.type === "narang") ctx.fillStyle = "magenta";
     else if (npc2.type === "eolkimchi") ctx.fillStyle = "yellow";
-    else if (npc2.type === "goryeosam") ctx.fillStyle = "black";
+    else if (npc2.type === "goryeosam") ctx.fillStyle = "hsl(" + ((Date.now()/10)%360) + ",100%,50%)";
     else ctx.fillStyle = "white";
     ctx.beginPath();
     ctx.arc(mmx2, mmy2, 4, 0, Math.PI * 2);
