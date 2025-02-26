@@ -21,7 +21,6 @@
       justify-content: center;
       background: black;
       color: white;
-      position: relative;
     }
     #playerList {
       list-style: none;
@@ -41,7 +40,7 @@
       color: red;
       pointer-events: none;
     }
-    /* 무적 스킬 디스플레이 (좌측 하단) – 게임 시작 후 보임 */
+    /* 무적 스킬 디스플레이 (좌측 하단) – 게임 시작 후에만 보임 */
     #skillDisplay {
       position: absolute;
       bottom: 20px;
@@ -68,18 +67,6 @@
       50% { color: orange; }
       100% { color: yellow; }
     }
-    /* 초기화 버튼 (대기실 우측 상단) */
-    #resetBtn {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      padding: 10px 20px;
-      background-color: #333;
-      color: white;
-      border: none;
-      cursor: pointer;
-      font-size: 16px;
-    }
   </style>
 </head>
 <body>
@@ -93,7 +80,6 @@
     <hr>
     <h2>참가자 목록</h2>
     <ul id="playerList"></ul>
-    <button id="resetBtn">초기화</button>
   </div>
 
   <div id="game">

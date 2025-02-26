@@ -48,11 +48,7 @@ startBtn.addEventListener("click", function() {
   socket.emit("startGame");
 });
 
-// 초기화 버튼 클릭 이벤트 (대기실 우측 상단)
-document.getElementById("resetBtn").addEventListener("click", function() {
-  socket.emit("resetGame");
-});
-
+// 대기방 업데이트
 socket.on("lobbyUpdate", function(playersData) {
   playerList.innerHTML = "";
   var allReady = true;
@@ -66,6 +62,7 @@ socket.on("lobbyUpdate", function(playersData) {
   startBtn.style.display = allReady ? "block" : "none";
 });
 
+// 게임 시작
 socket.on("gameStart", function() {
   lobbyDiv.style.display = "none";
   gameDiv.style.display = "block";
@@ -78,6 +75,7 @@ socket.on("gameStart", function() {
   startGameLoop();
 });
 
+// 게임 메시지 수신
 socket.on("gameMessage", function(data) {
   if(data.countdown) {
     displayCountdown(data.text, data.countdown, data.color, data.position);
@@ -123,8 +121,8 @@ document.addEventListener("keydown", function(e) {
     if(!invincibilityActivated) {
       invincibilityActivated = true;
       socket.emit("activateInvincibility");
+      // 전체 무적 UI (skillDisplay) 회색으로 변경
       var skillDisplay = document.getElementById("skillDisplay");
-      // 스킬 UI 전체를 회색으로 변경
       skillDisplay.style.color = "gray";
       skillDisplay.style.borderColor = "gray";
       skillDisplay.style.backgroundColor = "gray";
@@ -132,6 +130,7 @@ document.addEventListener("keydown", function(e) {
   }
 });
 
+// zoneSound 재생
 socket.on("zoneSound", function() {
   var zone = document.getElementById("zoneSound");
   if(zone) {
@@ -140,6 +139,7 @@ socket.on("zoneSound", function() {
   }
 });
 
+// gameState 업데이트
 socket.on("gameState", function(data) {
   var playersData = data.players;
   var npcs = data.npcs;
@@ -166,16 +166,6 @@ socket.on("gameOver", function(info) {
   lobbyDiv.style.display = "flex";
   gameDiv.style.display = "none";
   explosions = [];
-  invincibilityActivated = false;
-});
-
-socket.on("gameReset", function() {
-  // 서버에서 리셋 이벤트가 오면 대기실로 돌아감
-  lobbyDiv.style.display = "flex";
-  gameDiv.style.display = "none";
-  var bgm = document.getElementById("bgm");
-  bgm.pause();
-  bgm.currentTime = 0;
   invincibilityActivated = false;
 });
 
@@ -214,6 +204,7 @@ function updateExplosions() {
   explosions = explosions.filter(function(ex) { return ex.frame <= 30; });
 }
 
+// 별 그리기 함수 (5각별)
 function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius) {
   var rot = Math.PI / 2 * 3;
   var x = cx, y = cy;
@@ -263,7 +254,7 @@ function drawGame(playersData, npcs) {
   ctx.closePath();
   ctx.stroke();
 
-  // 플레이어 그리기 – 무적 상태이면 노랑/오렌지 번갈아 깜빡임 및 "존야!!!!!" 텍스트 표시
+  // 플레이어 그리기 – 무적 상태이면 노랑/오렌지로 번갈아 깜빡임 및 "존야!!!!!" 텍스트 표시
   for(var pid in playersData) {
     var pl = playersData[pid];
     if(!pl.alive) continue;
@@ -271,6 +262,7 @@ function drawGame(playersData, npcs) {
     var py = pl.y - localPlayer.y + gameCanvas.height / 2;
     if(pl.invincible) {
       var flash = Math.floor(Date.now()/100) % 2 === 0;
+      // 본체: 노랑과 오렌지 번갈아
       ctx.fillStyle = flash ? "yellow" : "orange";
     } else {
       ctx.fillStyle = pl.color;
@@ -283,7 +275,8 @@ function drawGame(playersData, npcs) {
     ctx.strokeStyle = "red";
     ctx.lineWidth = pl.needleBonus ? 20 : 2;
     if(pl.invincible) {
-      ctx.strokeStyle = (Math.floor(Date.now()/100) % 2 === 0) ? "yellow" : "orange";
+      // 무적이면 needle도 노랑/오렌지 번갈아
+      ctx.strokeStyle = Math.floor(Date.now()/100) % 2 === 0 ? "yellow" : "orange";
     }
     var startX = px + 20 * Math.cos(pl.angle);
     var startY = py + 20 * Math.sin(pl.angle);
@@ -295,7 +288,7 @@ function drawGame(playersData, npcs) {
     ctx.stroke();
     ctx.lineWidth = 2;
 
-    ctx.fillStyle = pl.invincible ? ((Math.floor(Date.now()/100) % 2 === 0) ? "yellow" : "orange") : "orange";
+    ctx.fillStyle = pl.invincible ? (Math.floor(Date.now()/100) % 2 === 0 ? "yellow" : "orange") : "orange";
     var balloonX = px - 30 * Math.cos(pl.angle);
     var balloonY = py - 30 * Math.sin(pl.angle);
     ctx.beginPath();
@@ -366,7 +359,6 @@ function drawGame(playersData, npcs) {
     }
   }
 
-  // 미니맵 그리기
   var miniSize = 200;
   var miniX = gameCanvas.width - miniSize - 20;
   var miniY = gameCanvas.height - miniSize - 20;

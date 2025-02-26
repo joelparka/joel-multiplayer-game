@@ -173,7 +173,7 @@ function npcCollision() {
   for(let i = 0; i < npcs.length; i++) {
     let npc = npcs[i];
     if(!npc.alive) continue;
-    // 나랑드의 현신(Narang)은 일반 충돌 검사에서 제외
+    // 중요! 나랑드의 현신(Narang)은 일반 충돌 검사에서 제외
     if(npc.type === "narang") continue;
     for(let pid in players) {
       let p = players[pid];
@@ -401,7 +401,7 @@ io.on("connection", function(socket) {
               y: MAP_HEIGHT/2,
               alive: true,
               type: "goryeosam",
-              size: 200, // 초기 크기: 200 (플레이어의 10배)
+              size: 200, // 초기 크기: 200 (플레이어의 10배, 기존 20*10)
               growthCountdown: 10 * SERVER_FPS
             };
             npcs.push(goryeosam);
@@ -434,20 +434,6 @@ io.on("connection", function(socket) {
     console.log("플레이어 나감:" + socket.id);
     delete players[socket.id];
     io.emit("lobbyUpdate", players);
-  });
-
-  // 초기화(reset) 이벤트: 대기실에서 "초기화" 버튼을 누르면 전체 게임 상태를 초기화
-  socket.on("resetGame", function() {
-    gameRunning = false;
-    npcs = [];
-    spawnedNarang = false;
-    spawnedEolkimchi = false;
-    spawnedGoryeosam = false;
-    for(let pid in players) {
-      players[pid].ready = false;
-      players[pid].invincibilityUsed = false;
-    }
-    io.emit("gameReset");
   });
 });
 
