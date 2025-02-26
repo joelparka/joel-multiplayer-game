@@ -39,9 +39,6 @@ var explosions = [];
 var mousePos = { x: gameCanvas.width / 2, y: gameCanvas.height / 2 };
 var mouseDown = false;
 
-var npcMessages = [];
-
-// 연결
 socket.on("connect", function() {
   myId = socket.id;
   console.log("내 소켓 ID:" + myId);
@@ -80,7 +77,7 @@ socket.on("gameStart", function() {
   startGameLoop();
 });
 
-// gameState
+// 게임 상태 업데이트
 socket.on("gameState", function(data) {
   var players = data.players;
   var npcs = data.npcs;
@@ -94,7 +91,6 @@ socket.on("gameState", function(data) {
     localPlayer.alive = me.alive;
     if (me.explosion) {
       addExplosion(me.x, me.y);
-      deadSound.play();  // 죽을 때 소리
     }
   }
 
@@ -118,14 +114,6 @@ socket.on("gameOver", function(info) {
   lobbyDiv.style.display = "flex";
   gameDiv.style.display = "none";
   explosions = [];
-});
-
-// 타이머 및 메시지
-socket.on("countdown", function(countdown) {
-  npcMessages.push("타이머: " + countdown + "초");
-  if (countdown <= 0) {
-    npcMessages.push("타이머가 끝났습니다!");
-  }
 });
 
 // 게임 중 마우스 이동 처리
@@ -299,11 +287,4 @@ function drawGame(players, npcs) {
     ctx.arc(mmx2, mmy2, 4, 0, Math.PI * 2);
     ctx.fill();
   }
-
-  // NPC 타이머 메시지 표시
-  npcMessages.forEach(function(message, index) {
-    ctx.font = "18px Arial";
-    ctx.fillStyle = "white";
-    ctx.fillText(message, 10, 30 + index * 20);
-  });
 }
