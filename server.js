@@ -173,7 +173,7 @@ function npcCollision() {
   for(let i = 0; i < npcs.length; i++) {
     let npc = npcs[i];
     if(!npc.alive) continue;
-    // 중요! 나랑드의 현신(Narang)은 일반 충돌 검사에서 제외
+    // 나랑드의 현신(Narang)은 일반 충돌 검사에서 제외
     if(npc.type === "narang") continue;
     for(let pid in players) {
       let p = players[pid];
@@ -401,7 +401,7 @@ io.on("connection", function(socket) {
               y: MAP_HEIGHT/2,
               alive: true,
               type: "goryeosam",
-              size: 200, // 초기 크기: 200 (플레이어의 10배, 기존 20*10)
+              size: 200, // 초기 크기: 200 (플레이어의 10배)
               growthCountdown: 10 * SERVER_FPS
             };
             npcs.push(goryeosam);
@@ -435,9 +435,21 @@ io.on("connection", function(socket) {
     delete players[socket.id];
     io.emit("lobbyUpdate", players);
   });
-});
 
-setInterval(updateGame, 1000 / SERVER_FPS);
+  // 초기화(reset) 이벤트 – 대기실의 "초기화" 버튼 클릭 시 전체 상태 초기화
+  socket.on("resetGame", function() {
+    gameRunning = false;
+    npcs = [];
+    spawnedNarang = false;
+    spawnedEolkimchi = false;
+    spawnedGoryeosam = false;
+    for (let pid in players) {
+      players[pid].ready = false;
+      players[pid].invincibilityUsed = false;
+    }
+    io.emit("gameReset");
+  });
+});
 
 function updateGame() {
   try {
@@ -598,25 +610,25 @@ setInterval(updateGame, 1000 / SERVER_FPS);
 function checkGameOver() {
   let arr = Object.values(players);
   let alive = [];
-  for(let i = 0; i < arr.length; i++) {
-    if(arr[i].alive) alive.push(arr[i]);
+  for (let i = 0; i < arr.length; i++) {
+    if (arr[i].alive) alive.push(arr[i]);
   }
-  if(alive.length <= 0 && gameRunning) {
+  if (alive.length <= 0 && gameRunning) {
     gameRunning = false;
     io.emit("gameOver", { winner: null });
     console.log("무승부(아무도 안남음)");
     npcs = [];
-    for(let pid in players) {
+    for (let pid in players) {
       players[pid].ready = false;
       players[pid].invincibilityUsed = false;
     }
     return;
   }
-  if(alive.length <= winnerCount && gameRunning) {
+  if (alive.length <= winnerCount && gameRunning) {
     gameRunning = false;
-    if(alive.length > 0) {
+    if (alive.length > 0) {
       let names = [];
-      for(let x = 0; x < alive.length; x++) {
+      for (let x = 0; x < alive.length; x++) {
         names.push(alive[x].nickname);
       }
       let winnerNames = names.join(", ");
@@ -627,7 +639,7 @@ function checkGameOver() {
       console.log("무승부(승자 없음)");
     }
     npcs = [];
-    for(let pid in players) {
+    for (let pid in players) {
       players[pid].ready = false;
       players[pid].invincibilityUsed = false;
     }

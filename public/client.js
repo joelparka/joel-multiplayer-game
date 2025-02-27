@@ -35,7 +35,7 @@ socket.on("connect", function() {
   console.log("내 소켓 ID:" + myId);
 });
 
-// 대기방에서는 무적 스킬 UI 숨김
+// Ready 버튼 토글 (대기실)
 readyBtn.addEventListener("click", function() {
   isReady = !isReady;
   socket.emit("setPlayerInfo", { nickname: nicknameInput.value, color: colorInput.value });
@@ -43,8 +43,14 @@ readyBtn.addEventListener("click", function() {
   readyBtn.innerText = isReady ? "Cancel Ready" : "Ready";
 });
 
+// START 버튼 클릭
 startBtn.addEventListener("click", function() {
   socket.emit("startGame");
+});
+
+// 초기화 버튼 클릭 (대기실 우측 상단)
+document.getElementById("resetBtn").addEventListener("click", function() {
+  socket.emit("resetGame");
 });
 
 socket.on("lobbyUpdate", function(playersData) {
@@ -110,7 +116,7 @@ function displayCountdown(prefix, count, color, position) {
   }, 1000);
 }
 
-// 무적 스킬: 대기방에서는 무시, 게임 중에만
+// 무적 스킬: 대기실에서는 무시, 게임 중에만 활성화
 document.addEventListener("keydown", function(e) {
   if(e.key === "1") {
     if(lobbyDiv.style.display !== "none") return;
@@ -118,7 +124,7 @@ document.addEventListener("keydown", function(e) {
       invincibilityActivated = true;
       socket.emit("activateInvincibility");
       var skillDisplay = document.getElementById("skillDisplay");
-      // 스킬 UI 전체를 회색으로 변경
+      // 무적 스킬 UI 전체를 회색으로 변경
       skillDisplay.style.color = "gray";
       skillDisplay.style.borderColor = "gray";
       skillDisplay.style.backgroundColor = "gray";
@@ -160,6 +166,16 @@ socket.on("gameOver", function(info) {
   lobbyDiv.style.display = "flex";
   gameDiv.style.display = "none";
   explosions = [];
+  invincibilityActivated = false;
+});
+
+socket.on("gameReset", function() {
+  // 서버 초기화 후 대기실로 전환 및 bgm 정지
+  lobbyDiv.style.display = "flex";
+  gameDiv.style.display = "none";
+  var bgm = document.getElementById("bgm");
+  bgm.pause();
+  bgm.currentTime = 0;
   invincibilityActivated = false;
 });
 
@@ -247,7 +263,7 @@ function drawGame(playersData, npcs) {
   ctx.closePath();
   ctx.stroke();
 
-  // 플레이어 그리기 – 무적 시 깜빡임 효과 및 "존야!!!!!" 텍스트
+  // 플레이어 그리기 – 무적 상태이면 깜빡임 및 "존야!!!!!" 텍스트 표시
   for(var pid in playersData) {
     var pl = playersData[pid];
     if(!pl.alive) continue;
@@ -358,8 +374,9 @@ function drawGame(playersData, npcs) {
   ctx.fillRect(miniX, miniY, miniSize, miniSize);
   ctx.strokeStyle = "white";
   ctx.strokeRect(miniX, miniY, miniSize, miniSize);
-  var scaleX = miniSize / MAP_WIDTH;
-  var scaleY = miniSize / MAP_HEIGHT;
+
+  var scaleX = miniSize / mapWidth;
+  var scaleY = miniSize / mapHeight;
   for(var pid2 in playersData) {
     var p2 = playersData[pid2];
     if(!p2.alive) continue;
@@ -375,19 +392,12 @@ function drawGame(playersData, npcs) {
     if(!npc2.alive) continue;
     var mmx2 = miniX + (npc2.x * scaleX);
     var mmy2 = miniY + (npc2.y * scaleY);
-    if(npc2.type === "goryeosam") {
-      let miniRadius = npc2.size / 5;
-      ctx.fillStyle = "hsl(" + ((Date.now()/2)%360) + ",100%,50%)";
-      ctx.beginPath();
-      ctx.arc(mmx2, mmy2, miniRadius, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      if(npc2.type === "narang") ctx.fillStyle = "magenta";
-      else if(npc2.type === "eolkimchi") ctx.fillStyle = "yellow";
-      else ctx.fillStyle = "white";
-      ctx.beginPath();
-      ctx.arc(mmx2, mmy2, 4, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    if(npc2.type === "narang") ctx.fillStyle = "magenta";
+    else if(npc2.type === "eolkimchi") ctx.fillStyle = "yellow";
+    else if(npc2.type === "goryeosam") ctx.fillStyle = "hsl(" + ((Date.now()/2)%360) + ",100%,50%)";
+    else ctx.fillStyle = "white";
+    ctx.beginPath();
+    ctx.arc(mmx2, mmy2, 4, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
